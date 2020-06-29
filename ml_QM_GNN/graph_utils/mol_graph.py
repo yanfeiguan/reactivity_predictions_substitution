@@ -26,8 +26,6 @@ def initialize_qm_descriptors(df=None, path=None):
     elif df is not None:
         qm_descriptors = df
 
-# from graph_utils.electronegs import electronegs
-
 
 def get_atom_classes():
     atom_classes = {}

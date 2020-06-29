@@ -21,8 +21,15 @@ bond_fdim_geo = 6
 bond_fdim_qm = 25 + 40
 max_nb = 10
 
+qm_descriptors_folder = None
 
-# from graph_utils.electronegs import electronegs
+def initialize_qm_descriptors(df=None, path=None):
+    global qm_descriptors_folder
+    if path is not None:
+        qm_descriptors_folder = pd.read_pickle(path).set_index('smiles')
+    elif df is not None:
+        qm_descriptors_folder = df
+
 
 def get_atom_classes():
     atom_classes = {}

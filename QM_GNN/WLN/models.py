@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 import tensorflow.keras.backend as K
-from WLN.layers import WLN_Layer, Global_Attention
+from .layers import WLN_Layer, Global_Attention
 import sys
 import numpy as np
 import time

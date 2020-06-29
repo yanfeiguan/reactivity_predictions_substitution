@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import backend as K
-import numpy as np
 
 class WLN_Layer(tf.keras.layers.Layer):
     '''

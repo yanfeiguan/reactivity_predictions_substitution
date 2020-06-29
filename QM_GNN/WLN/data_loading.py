@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.utils import Sequence
 from random import shuffle
-from graph_utils.mol_graph import get_bond_edits, smiles2graph_pr, pack1D, pack2D, pack2D_withidx, get_mask
-from graph_utils.ioutils_direct import binary_features_batch
+from ..graph_utils.mol_graph import get_bond_edits, smiles2graph_pr, pack1D, pack2D, pack2D_withidx, get_mask
+from ..graph_utils.ioutils_direct import binary_features_batch
 from rdkit import Chem
 
 # get QM descriptor

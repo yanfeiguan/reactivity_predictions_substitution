@@ -1,15 +1,12 @@
-import os, sys
-#sys.path.append(os.path.join(os.getcwd(), '../'))
+import os
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.keras import losses
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 import numpy as np
 import pandas as pd
 
 from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
-from random import shuffle
 import argparse
 from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
 from ml_QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
@@ -17,24 +14,25 @@ from scipy.special import softmax
 from rdkit import rdBase
 from tqdm import tqdm
 
-from data_process import check_chemprop_out, min_max_normalize
-
-from chemprop.parsing import add_predict_args, modify_predict_args
-from chemprop.train import make_predictions
-
 from rdkit import Chem
 
 #find chemprop root path
-import chemprop
-chemprop_root = os.path.dirname(os.path.dirname(chemprop.__file__))
+from chemprop.parsing import add_predict_args
 
 rdBase.DisableLog('rdApp.warning')
 
 parser = argparse.ArgumentParser()
 add_predict_args(parser)
-parser.add_argument('-r', '--restart', action='store_true')
-parser.add_argument('-p', '--predict', action='store_true')
-parser.add_argument('-m', '--model_path', default='trained_model')
+parser.add_argument('-r', '--restart', action='store_true',
+                    help='restart the training using the saved the checkpoint file')
+parser.add_argument('-p', '--predict', action='store_true',
+                    help='predict reactivity for a given .csv file')
+parser.add_argument('-m', '--model', default='ml_QM_GNN', choices=['ml_QM_GNN', 'QM_GNN', 'GNN'],
+                    help='model can be used')
+parser.add_argument('--model_path', default='trained_model',
+                    help='path to the checkpoint file of the trained model')
+parser.add_argument('--desc_path', default=None,
+                    help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
 parser.add_argument('-o', '--output_path', default='output')
 parser.add_argument('-f', '--feature', default=50, type=int)
 parser.add_argument('-d', '--depth', default=3, type=int)
@@ -44,65 +42,24 @@ parser.add_argument('--ini_lr', default=0.001, type=float)
 parser.add_argument('--lr_ratio', default=0.95, type=float)
 args = parser.parse_args()
 
-#trick chemprop
-args.test_path = 'foo'
+if args.model == 'ml_QM_GNN':
+    from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
+    from ml_QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
+    from predict_desc.predict_desc import predict_desc
+    from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
+    df = predict_desc(args)
+    initialize_qm_descriptors(df=df)
+else:
+    if args.model == 'QM_GNN':
+        from QM_GNN.WLN.data_loading import Graph_DataLoader
+        from QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
+        from QM_GNN.WLN.models import WLNPairwiseAtomClassifier
+        initialize_qm_descriptors(path=args.desc_path)
+    elif args.model == 'GNN':
+        from GNN.WLN.data_loading import Graph_DataLoader
+        from GNN.WLN.models import WLNPairwiseAtomClassifier
 
-args.checkpoint_path = os.path.join(chemprop_root, 'trained_model', 'QM_137k.pt')
-modify_predict_args(args)
-
-def num_atoms_bonds(smiles):
-    m = Chem.MolFromSmiles(smiles)
-
-    m = Chem.AddHs(m)
-
-    return len(m.GetAtoms()), len(m.GetBonds())
-
-# predict descriptors for reactants in the reactions
 reactivity_data = pd.read_csv(args.data_path, index_col=0)
-reactants = set()
-for _, row in reactivity_data.iterrows():
-    rs, _, _ = row['rxn_smiles'].split('>')
-    rs = rs.split('.')
-    for r in rs:
-        reactants.add(r)
-reactants = list(reactants)
-
-print('Predicting descriptors for reactants...')
-test_preds, test_smiles = make_predictions(args, smiles=reactants)
-
-partial_charge = test_preds[0]
-partial_neu = test_preds[1]
-partial_elec = test_preds[2]
-NMR = test_preds[3]
-
-bond_order = test_preds[4]
-bond_distance = test_preds[5]
-
-n_atoms, n_bonds = zip(*[num_atoms_bonds(x) for x in reactants])
-
-partial_charge = np.split(partial_charge.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-partial_neu = np.split(partial_neu.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-partial_elec = np.split(partial_elec.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-NMR = np.split(NMR.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-
-bond_order = np.split(bond_order.flatten(), np.cumsum(np.array(n_bonds)))[:-1]
-bond_distance = np.split(bond_distance.flatten(), np.cumsum(np.array(n_bonds)))[:-1]
-
-df = pd.DataFrame(
-    {'smiles': reactants, 'partial_charge': partial_charge, 'fukui_neu': partial_neu, 'fukui_elec': partial_elec,
-     'NMR': NMR, 'bond_order': bond_order, 'bond_length': bond_distance})
-
-invalid = check_chemprop_out(df)
-#FIXME remove invalid molecules from reaction dataset
-print(invalid)
-
-if not os.path.exists(args.output_path):
-    os.mkdir(args.output_path)
-
-df.to_pickle(os.path.join(args.output_path, 'reactants_descriptors.pickle'))
-df = min_max_normalize(df, args.ref_data_path)
-df.to_pickle(os.path.join(args.output_path, 'reactants_descriptors_norm.pickle'))
-initialize_qm_descriptors(df=df)
 
 batch_size = 10
 top = 100

@@ -1,10 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 import tensorflow.keras.backend as K
-from WLN.layers import WLN_Layer, Global_Attention
-import sys
+from .layers import WLN_Layer, Global_Attention
 import numpy as np
-import time
 
 np.set_printoptions(threshold=np.inf)
 
