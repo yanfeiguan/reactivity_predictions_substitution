@@ -27,10 +27,10 @@ The data file must be be a **CSV file with a fixed header row**. An example inpu
 
 in which, rxn_smiles are the reaction SMILES. And products_run are the potential products (major.minor1.minor2.....).
 
-##Training
+## Training
 This repo provides two model architectures as described in the paper.
 
-###GNN
+### GNN
 A conventional graph neural network that relies only on the machine learned reaction representation of a given reaction. 
 To train the model, run:
 ```
@@ -39,7 +39,7 @@ python reactivitiy.py -m GNN --data_path data_example.csv --model_path <path>
 
 where `<path>` is the path to a checkpoint file, in which you want to store the parameters of the trained network.
 
-###ml-QM-GNN
+### ml-QM-GNN
 
 This is the novel fusion model introduced in the paper, which combines machine learned reaction representation and on-the-fly
 calculated QM descriptors. To use this architecture, the [Chemprop-atom-bond](https://github.com/yanfeiguan/chemprop-atom-bond) 
