@@ -33,7 +33,7 @@ parser.add_argument('--model_path', default='trained_model',
                     help='path to the checkpoint file of the trained model')
 parser.add_argument('--desc_path', default=None,
                     help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
-parser.add_argument('-o', '--output_path', default='output')
+parser.add_argument('-o', '--output_dir', default='output')
 parser.add_argument('-f', '--feature', default=50, type=int)
 parser.add_argument('-d', '--depth', default=3, type=int)
 parser.add_argument('-dp', '--data_path', default='data/regio_nonstereo_12k_QM', type=str)
@@ -194,6 +194,9 @@ else:
         predicted.append(list(predicted_rxn))
 
     test_predicted = pd.DataFrame({'rxn_id': test_rxn_id, 'predicted': predicted})
-    test_predicted.to_csv(os.path.join(args.output_path, 'predicted.csv'))
+    if not os.path.isdir(args.output_dir):
+        os.mkdir(args.output_dir)
+
+    test_predicted.to_csv(os.path.join(args.output_dir, 'predicted.csv'))
 
 
