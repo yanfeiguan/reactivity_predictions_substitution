@@ -9,6 +9,10 @@ paper: xxxxxxx.
 2. [Chemprop-atom-bond](https://github.com/yanfeiguan/chemprop-atom-bond) (extra dependcy required)
 3. tensorflow 2.3.0
 
+Notes:
+ * If using the on-the-fly QM descriptor predictor, the [Chemprop-atom-bond](https://github.com/yanfeiguan/chemprop-atom-bond)
+  path need to be added into the PYTHONPATH exvironmental variable
+
 ## Available models
 
 We provide three types of models to predict the selectivity.
