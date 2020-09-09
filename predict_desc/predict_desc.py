@@ -64,11 +64,16 @@ def predict_desc(args):
     # FIXME remove invalid molecules from reaction dataset
     print(invalid)
 
-    if not os.path.exists(args.output_path):
-        os.mkdir(args.output_path)
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
 
-    df.to_pickle(os.path.join(args.output_path, 'reactants_descriptors.pickle'))
-    df = min_max_normalize(df, args.ref_data_path)
-    df.to_pickle(os.path.join(args.output_path, 'reactants_descriptors_norm.pickle'))
+    df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors.pickle'))
+
+    if args.ref_data_path is not None:
+        ref_df = pd.read_pickle(args.ref_data_path)
+    else:
+        ref_df = df
+    df = min_max_normalize(df, ref_df)
+    df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors_norm.pickle'))
 
     return df

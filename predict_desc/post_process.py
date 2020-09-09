@@ -20,6 +20,7 @@ def min_max_normalize(df, ref_df=None):
     if ref_df is None:
         ref_df = df
     ref_df['atoms'] = ref_df.smiles.apply(lambda x: get_atoms(x))
+    df['atoms'] = df.smiles.apply(lambda x: get_atoms(x))
     # max-min trough atom types
     # NMR
     nmrs = np.concatenate(ref_df.NMR.tolist())
@@ -96,6 +97,6 @@ def minmax_by_element(r, minmax, target):
     target = r[target]
     elements = r['atoms']
     for i, a in enumerate(elements):
-        target[i] = (target[i] - minmax[a][0]) / (minmax[a][1] + np.finfo(float).eps - minmax[a][0])
+        target[i] = (target[i] - minmax[a][0]) / (minmax[a][1] - minmax[a][0] + np.finfo(float).eps)
 
     return target
