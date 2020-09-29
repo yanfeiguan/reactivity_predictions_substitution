@@ -35,16 +35,12 @@ parser.add_argument('--desc_path', default=None,
                     help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
 parser.add_argument('-o', '--output_dir', default='output')
 parser.add_argument('-f', '--feature', default=50, type=int)
-parser.add_argument('-d', '--depth', default=3, type=int)
+parser.add_argument('-d', '--depth', default=4, type=int)
 parser.add_argument('-dp', '--data_path', default='data/regio_nonstereo_12k_QM', type=str)
 parser.add_argument('-rdp', '--ref_data_path', default=None, type=str)
 parser.add_argument('--ini_lr', default=0.001, type=float)
 parser.add_argument('--lr_ratio', default=0.95, type=float)
 args = parser.parse_args()
-
-args.data_path = os.path.join('uspto_demo_data', 'uspto_others.csv')
-args.model_dir = 'trained_model/ml_QM_GNN_others'
-args.predict = True
 
 if args.model == 'ml_QM_GNN':
     from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
@@ -170,7 +166,7 @@ reduce_lr = keras.callbacks.LearningRateScheduler(lr_multiply_ratio(args.ini_lr,
 callbacks = [checkpoint, reduce_lr]
 
 if not args.predict:
-    model = model.fit_generator(
+    hist = model.fit_generator(
         train_gen, steps_per_epoch=train_steps, epochs=50,
         validation_data=valid_gen, validation_steps=valid_steps,
         callbacks=callbacks,
