@@ -2,8 +2,13 @@ from rdkit import Chem
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from sklearn.preprocessing import MinMaxScaler
 
 tqdm.pandas()
+
+GLOBAL_SCALE = ['partial_charge', 'fukui_neu', 'fukui_elec']
+ATOM_SCALE = ['NMR']
+
 
 def check_chemprop_out(df):
     invalid = []
@@ -15,59 +20,58 @@ def check_chemprop_out(df):
     return invalid
 
 
+def min_max_normalize(df, scalers=None):
 
-def min_max_normalize(df, ref_df=None):
-    if ref_df is None:
-        ref_df = df
-    ref_df['atoms'] = ref_df.smiles.apply(lambda x: get_atoms(x))
-    df['atoms'] = df.smiles.apply(lambda x: get_atoms(x))
-    # max-min trough atom types
-    # NMR
-    nmrs = np.concatenate(ref_df.NMR.tolist())
-    atoms = np.concatenate(ref_df.atoms.tolist())
-    minmax = {}
-    for a, n in zip(atoms, nmrs):
-        if a not in minmax:
-            minmax[a] = [n]
-        else:
-            minmax[a].append(n)
+    if scalers is None:
+        scalers = get_scaler(df)
 
-    for k in minmax.keys():
-        minmax[k] = [min(minmax[k]), max(minmax[k])]
+    for column in GLOBAL_SCALE:
+        scaler = scalers[column]
+        df[column] = df[column].apply(lambda x: scaler.transform(x.reshape(-1, 1)).reshape(-1))
 
-    df['NMR'] = df.progress_apply(lambda x: minmax_by_element(x, minmax, 'NMR'), axis=1)
+    def min_max_by_atom(atoms, data, scaler):
+        data = [scaler[a].transform(np.array([[d]]))[0][0] for a, d in zip(atoms, data)]
+        return np.array(data)
+
+    if ATOM_SCALE:
+        print('postprocessing atom-wise scaling')
+        df['atoms'] = df.smiles.apply(lambda x: get_atoms(x))
+        for column in ATOM_SCALE:
+            df[column] = df.progress_apply(lambda x: min_max_by_atom(x['atoms'], x[column], scalers[column]), axis=1)
 
     df['bond_order_matrix'] = df.apply(lambda x: bond_to_matrix(x['smiles'], x['bond_order']), axis=1)
     df['distance_matrix'] = df.apply(lambda x: bond_to_matrix(x['smiles'], x['bond_length']), axis=1)
 
-    #partial charge
-    charges = np.concatenate(ref_df.partial_charge.tolist())
-    min_charge = charges.min()
-    max_charge = charges.max()
-
-    df['partial_charge'] = df.partial_charge.apply(
-        lambda x: (x - min_charge) / (max_charge - min_charge + np.finfo(float).eps))
-
-    #fukui neu indices
-    charges = np.concatenate(ref_df.fukui_neu.tolist())
-    min_charge = charges.min()
-    max_charge = charges.max()
-
-    df['fukui_neu'] = df.fukui_neu.apply(
-        lambda x: (x - min_charge) / (max_charge - min_charge + np.finfo(float).eps))
-
-    # fukui elec indices
-    charges = np.concatenate(ref_df.fukui_elec.tolist())
-    min_charge = charges.min()
-    max_charge = charges.max()
-
-    df['fukui_elec'] = df.fukui_elec.apply(
-        lambda x: (x - min_charge) / (max_charge - min_charge + np.finfo(float).eps))
-
     df = df[['smiles', 'partial_charge', 'fukui_neu', 'fukui_elec', 'NMR', 'bond_order_matrix', 'distance_matrix']]
     df = df.set_index('smiles')
 
-    return df
+    return df, scalers
+
+
+def get_scaler(df):
+    scalers = {}
+    for column in GLOBAL_SCALE:
+        scaler = MinMaxScaler()
+        data = np.concatenate(df[column].tolist()).reshape(-1, 1)
+
+        scaler.fit(data)
+        scalers[column] = scaler
+
+    if ATOM_SCALE:
+        atoms = df.smiles.apply(lambda x: get_atoms(x))
+        atoms = np.concatenate(atoms)
+        for column in ATOM_SCALE:
+            data = np.concatenate(df[column].tolist())
+
+            data = pd.DataFrame({'atoms': atoms, 'data': data})
+            data = data.groupby('atoms').agg({'data': lambda x: list(x)})['data'].apply(lambda x: np.array(x)).to_dict()
+
+            scalers[column] = {}
+            for k, d in data.items():
+                scaler = MinMaxScaler()
+                scalers[column][k] = scaler.fit(d.reshape(-1, 1))
+
+    return scalers
 
 
 def bond_to_matrix(smiles, bond_vector):

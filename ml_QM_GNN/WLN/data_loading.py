@@ -9,14 +9,19 @@ from ..graph_utils.ioutils_direct import binary_features_batch
 
 
 class Graph_DataLoader(Sequence):
-    def __init__(self, smiles, products, rxn_id, batch_size, shuffle=True):
+    def __init__(self, smiles, products, rxn_id, batch_size, shuffle=True, predict=False):
         self.smiles = smiles
         self.products = products
         self.rxn_id = rxn_id
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.on_epoch_end()
         self.atom_classes = {}
+        self.predict = predict
+
+        if self.predict:
+            self.shuffle = False
+
+        self.on_epoch_end()
 
     def __len__(self):
         return int(np.ceil(len(self.smiles) / self.batch_size))
@@ -25,8 +30,13 @@ class Graph_DataLoader(Sequence):
         smiles_tmp = self.smiles[index * self.batch_size:(index + 1) * self.batch_size]
         products_tmp = self.products[index * self.batch_size:(index + 1) * self.batch_size]
         rxn_id_tmp = self.rxn_id[index * self.batch_size:(index + 1) * self.batch_size]
-        x, y = self.__data_generation(smiles_tmp, products_tmp, rxn_id_tmp)
-        return x, y
+
+        if not self.predict:
+            x, y = self.__data_generation(smiles_tmp, products_tmp, rxn_id_tmp)
+            return x, y
+        else:
+            x = self.__data_generation(smiles_tmp, products_tmp, rxn_id_tmp)
+            return x
 
     def on_epoch_end(self):
         if self.shuffle == True:
@@ -53,5 +63,7 @@ class Graph_DataLoader(Sequence):
         res_graph_inputs = (pack2D(fatom_list), pack2D(fbond_list), pack2D_withidx(gatom_list),
                             pack2D_withidx(gbond_list), pack1D(nb_list), get_mask(fatom_list),
                             binary_features_batch(smiles_extend), pack1D(core_mask), pack2D(fatom_qm_list))
-
-        return res_graph_inputs, np.array(labels_extend).astype('int32')
+        if self.predict:
+            return res_graph_inputs
+        else:
+            return res_graph_inputs, np.array(labels_extend).astype('int32')

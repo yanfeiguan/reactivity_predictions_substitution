@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from chemprop.parsing import add_predict_args, modify_predict_args
+from chemprop.parsing import modify_predict_args
 from chemprop.train import make_predictions
 from .post_process import check_chemprop_out, min_max_normalize
+import pickle
 
 def predict_desc(args):
     import chemprop
@@ -14,6 +15,7 @@ def predict_desc(args):
 
     #trick chemprop
     args.test_path = 'foo'
+    args.preds_path = 'foo'
     args.checkpoint_path = os.path.join(chemprop_root, 'trained_model', 'QM_137k.pt')
     modify_predict_args(args)
 
@@ -68,12 +70,16 @@ def predict_desc(args):
         os.mkdir(args.output_dir)
 
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors.pickle'))
+    save_dir = args.model_dir
 
-    if args.ref_data_path is not None:
-        ref_df = pd.read_pickle(args.ref_data_path)
+    if not args.predict:
+        df, scalers = min_max_normalize(df)
+        pickle.dump(scalers, open(os.path.join(save_dir, 'scalers.pickle'), 'wb'))
     else:
-        ref_df = df
-    df = min_max_normalize(df, ref_df)
+        scalers = pickle.load(open(os.path.join(save_dir, 'scalers.pickle'), 'rb'))
+        df, _ = min_max_normalize(df, scalers)
+
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors_norm.pickle'))
+
 
     return df

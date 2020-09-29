@@ -29,7 +29,7 @@ parser.add_argument('-p', '--predict', action='store_true',
                     help='predict reactivity for a given .csv file')
 parser.add_argument('-m', '--model', default='ml_QM_GNN', choices=['ml_QM_GNN', 'QM_GNN', 'GNN'],
                     help='model can be used')
-parser.add_argument('--model_path', default='trained_model',
+parser.add_argument('--model_dir', default='trained_model',
                     help='path to the checkpoint file of the trained model')
 parser.add_argument('--desc_path', default=None,
                     help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
@@ -41,6 +41,10 @@ parser.add_argument('-rdp', '--ref_data_path', default=None, type=str)
 parser.add_argument('--ini_lr', default=0.001, type=float)
 parser.add_argument('--lr_ratio', default=0.95, type=float)
 args = parser.parse_args()
+
+args.data_path = os.path.join('uspto_demo_data', 'uspto_others.csv')
+args.model_dir = 'trained_model/ml_QM_GNN_others'
+args.predict = True
 
 if args.model == 'ml_QM_GNN':
     from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
@@ -90,11 +94,11 @@ else:
     test_smiles = test.rxn_smiles.str.split('>', expand=True)[0].values
     test_products = test.products_run.values
 
-    test_gen = Graph_DataLoader(test_smiles, test_products, test_rxn_id, batch_size, shuffle=False)
+    test_gen = Graph_DataLoader(test_smiles, test_products, test_rxn_id, batch_size, predict=True)
     test_steps = np.ceil(len(test_smiles) / batch_size).astype(int)
 
 # need an input to initialize the graph network
-    for x, _ in Graph_DataLoader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1):
+    for x in Graph_DataLoader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1, predict=True):
         x_build = x
 
 
@@ -133,10 +137,9 @@ def regio_acc(y_true_g, y_pred):
     return tf.reduce_sum(K.cast(match, 'float32'))/K.cast(tf.size(top_score), 'float32')
 
 
-save_name = args.model_path
-save_dir = os.path.dirname(save_name)
-if not os.path.isdir(save_dir):
-    os.mkdir(save_dir)
+save_name = os.path.join(args.model_dir, 'best_model.hdf5')
+if not os.path.isdir(args.model_dir):
+    os.mkdir(args.model_dir)
 
 model = WLNPairwiseAtomClassifier(args.feature, args.depth, output_dim=5)
 opt = tf.keras.optimizers.Adam(lr=0.0007, clipnorm=5)
@@ -176,22 +179,15 @@ if not args.predict:
     )
 else:
     predicted = []
-    for x, y in tqdm(test_gen, total=int(len(test_smiles)/batch_size)):
+    for x in tqdm(test_gen, total=int(len(test_smiles) / batch_size)):
         out = model.predict_on_batch(x)
-        out = np.reshape(out, [-1])
-        predicted_rxn = []
-        for y_predicted, y_true in zip(out, y):
-            if y_true == 1 and predicted_rxn:
-                predicted_rxn = softmax(predicted_rxn)
-                predicted.append(list(predicted_rxn))
+        predicted.append(out)
 
-            if y_true == 1:
-                predicted_rxn = []
-
-            predicted_rxn.append(y_predicted)
-
-        predicted_rxn = softmax(predicted_rxn)
-        predicted.append(list(predicted_rxn))
+    predicted = np.concatenate(predicted, axis=0)
+    num_outcomes = [len(x.split('.')) for x in test_products]
+    rxn_split = np.cumsum(num_outcomes)
+    predicted = np.split(predicted, rxn_split)[:-1]
+    predicted = [softmax(x.reshape(-1, 1)).reshape(-1).tolist() for x in predicted]
 
     test_predicted = pd.DataFrame({'rxn_id': test_rxn_id, 'predicted': predicted})
     if not os.path.isdir(args.output_dir):
