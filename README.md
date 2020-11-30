@@ -7,7 +7,7 @@ This repository contains code and model for predicting regio-selectivity for sub
 
 1. python 3.7
 2. [Chemprop-atom-bond](https://github.com/yanfeiguan/chemprop-atom-bond) (extra dependcy required)
-3. tensorflow 2.3.0
+3. tensorflow 2.0.0
 
 Notes:
  * If using the on-the-fly QM descriptor predictor, the [Chemprop-atom-bond](https://github.com/yanfeiguan/chemprop-atom-bond)
