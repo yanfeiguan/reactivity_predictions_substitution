@@ -1,63 +1,17 @@
 import os
+
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import backend as K
-from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
+from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler
 import numpy as np
 import pandas as pd
-
-from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
-import argparse
-from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
-from ml_QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
 from scipy.special import softmax
 from rdkit import rdBase
 from tqdm import tqdm
 
-from rdkit import Chem
-
-#find chemprop root path
-from chemprop.parsing import add_predict_args
-
-rdBase.DisableLog('rdApp.warning')
-
-parser = argparse.ArgumentParser()
-add_predict_args(parser)
-parser.add_argument('-r', '--restart', action='store_true',
-                    help='restart the training using the saved the checkpoint file')
-parser.add_argument('-p', '--predict', action='store_true',
-                    help='predict reactivity for a given .csv file')
-parser.add_argument('-m', '--model', default='ml_QM_GNN', choices=['ml_QM_GNN', 'QM_GNN', 'GNN'],
-                    help='model can be used')
-parser.add_argument('--model_dir', default='trained_model',
-                    help='path to the checkpoint file of the trained model')
-parser.add_argument('--desc_path', default=None,
-                    help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
-parser.add_argument('-o', '--output_dir', default='output')
-parser.add_argument('-f', '--feature', default=50, type=int)
-parser.add_argument('-d', '--depth', default=4, type=int)
-parser.add_argument('-dp', '--data_path', default='data/regio_nonstereo_12k_QM', type=str)
-parser.add_argument('-rdp', '--ref_data_path', default=None, type=str)
-parser.add_argument('--ini_lr', default=0.001, type=float)
-parser.add_argument('--lr_ratio', default=0.95, type=float)
-args = parser.parse_args()
-
-if args.model == 'ml_QM_GNN':
-    from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
-    from ml_QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
-    from predict_desc.predict_desc import predict_desc
-    from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
-    df = predict_desc(args)
-    initialize_qm_descriptors(df=df)
-else:
-    if args.model == 'QM_GNN':
-        from QM_GNN.WLN.data_loading import Graph_DataLoader
-        from QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
-        from QM_GNN.WLN.models import WLNPairwiseAtomClassifier
-        initialize_qm_descriptors(path=args.desc_path)
-    elif args.model == 'GNN':
-        from GNN.WLN.data_loading import Graph_DataLoader
-        from GNN.WLN.models import WLNPairwiseAtomClassifier
+import argparse
+from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
+from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
+from utils import wln_loss, regio_acc, lr_multiply_ratio
 
 reactivity_data = pd.read_csv(args.data_path, index_col=0)
 
@@ -97,42 +51,6 @@ else:
     for x in Graph_DataLoader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1, predict=True):
         x_build = x
 
-
-def wln_loss(y_true, y_pred):
-
-    #softmax cross entropy
-    flat_label = K.cast(K.reshape(y_true, [-1]), 'float32')
-    flat_score = K.reshape(y_pred, [-1])
-
-    reaction_seg = K.cast(tf.math.cumsum(flat_label), 'int32') - tf.constant([1], dtype='int32')
-
-    max_seg = tf.gather(tf.math.segment_max(flat_score, reaction_seg), reaction_seg)
-    exp_score = tf.exp(flat_score-max_seg)
-
-    softmax_denominator = tf.gather(tf.math.segment_sum(exp_score, reaction_seg), reaction_seg)
-    softmax_score = exp_score/softmax_denominator
-
-    softmax_score = tf.clip_by_value(softmax_score, K.epsilon(), 1-K.epsilon())
-    try:
-        return -tf.reduce_sum(flat_label * tf.math.log(softmax_score))/flat_score.shape[0]
-    except:
-        #during initialization
-        return -tf.reduce_sum(flat_label * tf.math.log(softmax_score))
-
-
-def regio_acc(y_true_g, y_pred):
-    y_true_g = K.reshape(y_true_g, [-1])
-    y_pred = K.reshape(y_pred, [-1])
-
-    reaction_seg = K.cast(tf.math.cumsum(y_true_g), 'int32') - tf.constant([1], dtype='int32')
-
-    top_score = tf.math.segment_max(y_pred, reaction_seg)
-    major_score = tf.gather(y_pred, tf.math.top_k(y_true_g, tf.size(top_score))[1])
-
-    match = tf.equal(top_score, major_score)
-    return tf.reduce_sum(K.cast(match, 'float32'))/K.cast(tf.size(top_score), 'float32')
-
-
 save_name = os.path.join(args.model_dir, 'best_model.hdf5')
 if not os.path.isdir(args.model_dir):
     os.mkdir(args.model_dir)
@@ -154,14 +72,7 @@ if args.restart or args.predict:
 
 checkpoint = ModelCheckpoint(save_name, monitor='val_loss', save_best_only=True, save_weights_only=True)
 
-
-def lr_multiply_ratio(initial_lr, lr_ratio):
-    def lr_multiplier(idx):
-        return initial_lr*lr_ratio**idx
-    return lr_multiplier
-
-
-reduce_lr = keras.callbacks.LearningRateScheduler(lr_multiply_ratio(args.ini_lr, args.lr_ratio), verbose=1)
+reduce_lr = LearningRateScheduler(lr_multiply_ratio(args.ini_lr, args.lr_ratio), verbose=1)
 
 callbacks = [checkpoint, reduce_lr]
 
