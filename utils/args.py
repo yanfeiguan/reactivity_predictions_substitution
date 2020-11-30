@@ -1,5 +1,6 @@
 import argparse
 
+from rdkit import rdBase
 from chemprop.parsing import add_predict_args
 
 rdBase.DisableLog('rdApp.warning')
@@ -14,17 +15,18 @@ def parse_args():
                         help='predict reactivity for a given .csv file')
     parser.add_argument('-m', '--model', default='ml_QM_GNN', choices=['ml_QM_GNN', 'QM_GNN', 'GNN'],
                         help='model can be used')
+    parser.add_argument('-o', '--output_dir', default='output')
+    parser.add_argument('-f', '--feature', default=50, type=int)
+    parser.add_argument('-d', '--depth', default=4, type=int)
     parser.add_argument('--model_dir', default='trained_model',
                         help='path to the checkpoint file of the trained model')
     parser.add_argument('--desc_path', default=None,
                         help='path to the file storing the descriptors (must be provided when using QM_GNN model)')
-    parser.add_argument('-o', '--output_dir', default='output')
-    parser.add_argument('-f', '--feature', default=50, type=int)
-    parser.add_argument('-d', '--depth', default=4, type=int)
-    parser.add_argument('-dp', '--data_path', default='data/regio_nonstereo_12k_QM', type=str)
-    parser.add_argument('-rdp', '--ref_data_path', default=None, type=str)
+    parser.add_argument('--data_path', default='data/regio_nonstereo_12k_QM', type=str)
+    parser.add_argument('--ref_data_path', default=None, type=str)
     parser.add_argument('--ini_lr', default=0.001, type=float)
     parser.add_argument('--lr_ratio', default=0.95, type=float)
+    parser.add_argument('--batch_size', default=10, type=int)
     args = parser.parse_args()
 
     if args.model == 'ml_QM_GNN':

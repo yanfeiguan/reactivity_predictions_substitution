@@ -9,7 +9,8 @@ from chemprop.train import make_predictions
 from .post_process import check_chemprop_out, min_max_normalize
 import pickle
 
-def predict_desc(args):
+
+def predict_desc(args, normaliza=True):
     import chemprop
     chemprop_root = os.path.dirname(os.path.dirname(chemprop.__file__))
 
@@ -72,6 +73,9 @@ def predict_desc(args):
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors.pickle'))
     save_dir = args.model_dir
 
+    if not normaliza:
+        return df
+
     if not args.predict:
         df, scalers = min_max_normalize(df)
         pickle.dump(scalers, open(os.path.join(save_dir, 'scalers.pickle'), 'wb'))
@@ -80,6 +84,5 @@ def predict_desc(args):
         df, _ = min_max_normalize(df, scalers)
 
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors_norm.pickle'))
-
 
     return df

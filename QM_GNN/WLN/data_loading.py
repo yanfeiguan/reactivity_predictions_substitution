@@ -10,30 +10,6 @@ from rdkit import Chem
 
 # get QM descriptor
 
-def graph_batch_generator(smiles, labels, batch_size):
-    steps = int(np.ceil(len(smiles) / batch_size))
-    zipped = list(zip(smiles, labels))
-    shuffle(zipped)
-    smiles, labels = zip(*zipped)
-    while True:
-        for n in range(steps):
-            start = n * batch_size
-            stop = start + batch_size
-            graph_inputs = list(smiles2graph_list_bin(smiles[start:stop]))
-            max_natoms = graph_inputs[0].shape[1]
-            # binary_features = np.array([get_bin_feature(smi, max_natoms) for smi in smiles[start:stop]])
-            bond_labels = []
-            sp_labels = []
-            for smi, edit in zip(smiles[start:stop], labels[start:stop]):
-                l = get_bond_label(smi, edit, max_natoms)
-                bond_labels.append(l[0])
-                sp_labels.append(l[1])
-            # graph_inputs.append(binary_features)
-            labels_batch = labels[start:stop]
-            # print('bond label', l[0].shape)
-            yield (graph_inputs, np.array(bond_labels))
-
-
 class Graph_DataLoader(Sequence):
     def __init__(self, smiles, products, rxn_id, batch_size, shuffle=True):
         self.smiles = smiles

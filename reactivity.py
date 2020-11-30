@@ -5,18 +5,13 @@ from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler
 import numpy as np
 import pandas as pd
 from scipy.special import softmax
-from rdkit import rdBase
+
 from tqdm import tqdm
+from utils import wln_loss, regio_acc, lr_multiply_ratio, parse_args
 
-import argparse
-from ml_QM_GNN.WLN.models import WLNPairwiseAtomClassifier
-from ml_QM_GNN.WLN.data_loading import Graph_DataLoader
-from utils import wln_loss, regio_acc, lr_multiply_ratio
-
+args, dataloader, classifier = parse_args()
 reactivity_data = pd.read_csv(args.data_path, index_col=0)
 
-batch_size = 10
-top = 100
 if not args.predict:
     test = reactivity_data.sample(frac=0.1)
     valid = reactivity_data[~reactivity_data.reaction_id.isin(test.reaction_id)].sample(frac=1/9, random_state=1)
@@ -31,12 +26,12 @@ if not args.predict:
     valid_smiles = valid.rxn_smiles.str.split('>', expand=True)[0].values
     valid_products = valid.products_run.values
 
-    train_gen = Graph_DataLoader(train_smiles, train_products, train_rxn_id, batch_size)
-    train_steps = np.ceil(len(train_smiles) / batch_size).astype(int)
+    train_gen = dataloader(train_smiles, train_products, train_rxn_id, args.batch_size)
+    train_steps = np.ceil(len(train_smiles) / args.batch_size).astype(int)
 
-    valid_gen = Graph_DataLoader(valid_smiles, valid_products, valid_rxn_id, batch_size)
-    valid_steps = np.ceil(len(valid_smiles) / batch_size).astype(int)
-    for x, _ in Graph_DataLoader([train_smiles[0]], [train_products[0]], [train_rxn_id[0]], 1):
+    valid_gen = dataloader(valid_smiles, valid_products, valid_rxn_id, args.batch_size)
+    valid_steps = np.ceil(len(valid_smiles) / args.batch_size).astype(int)
+    for x, _ in dataloader([train_smiles[0]], [train_products[0]], [train_rxn_id[0]], 1):
         x_build = x
 else:
     test = reactivity_data
@@ -44,18 +39,18 @@ else:
     test_smiles = test.rxn_smiles.str.split('>', expand=True)[0].values
     test_products = test.products_run.values
 
-    test_gen = Graph_DataLoader(test_smiles, test_products, test_rxn_id, batch_size, predict=True)
-    test_steps = np.ceil(len(test_smiles) / batch_size).astype(int)
+    test_gen = dataloader(test_smiles, test_products, test_rxn_id, args.batch_size, predict=True)
+    test_steps = np.ceil(len(test_smiles) / args.batch_size).astype(int)
 
 # need an input to initialize the graph network
-    for x in Graph_DataLoader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1, predict=True):
+    for x in dataloader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1, predict=True):
         x_build = x
 
 save_name = os.path.join(args.model_dir, 'best_model.hdf5')
 if not os.path.isdir(args.model_dir):
     os.mkdir(args.model_dir)
 
-model = WLNPairwiseAtomClassifier(args.feature, args.depth, output_dim=5)
+model = classifier(args.feature, args.depth, output_dim=5)
 opt = tf.keras.optimizers.Adam(lr=0.0007, clipnorm=5)
 model.compile(
     optimizer=opt,
@@ -86,7 +81,7 @@ if not args.predict:
     )
 else:
     predicted = []
-    for x in tqdm(test_gen, total=int(len(test_smiles) / batch_size)):
+    for x in tqdm(test_gen, total=int(len(test_smiles) / args.batch_size)):
         out = model.predict_on_batch(x)
         predicted.append(out)
 
