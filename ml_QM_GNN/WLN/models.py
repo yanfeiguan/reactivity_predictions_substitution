@@ -33,7 +33,7 @@ class WLNPairwiseAtomClassifier(tf.keras.Model):
 
     '''
 
-    def __init__(self, hidden_size, depth, output_dim=5, max_nb=10):
+    def __init__(self, hidden_size, depth, max_nb=10):
         super(WLNPairwiseAtomClassifier, self).__init__()
         self.hidden_size = hidden_size
         self.reactants_WLN = WLN_Layer(hidden_size, depth, max_nb)

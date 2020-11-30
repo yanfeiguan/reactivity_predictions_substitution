@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('-o', '--output_dir', default='output')
     parser.add_argument('-f', '--feature', default=50, type=int)
     parser.add_argument('-d', '--depth', default=4, type=int)
+    parser.add_argument('-w', '--workers', default=10, type=int)
     parser.add_argument('--model_dir', default='trained_model',
                         help='path to the checkpoint file of the trained model')
     parser.add_argument('--desc_path', default=None,
@@ -27,6 +28,9 @@ def parse_args():
     parser.add_argument('--ini_lr', default=0.001, type=float)
     parser.add_argument('--lr_ratio', default=0.95, type=float)
     parser.add_argument('--batch_size', default=10, type=int)
+    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--splits', nargs=3, type=int, default=[10, 10, 80],
+                        help='Split of the dataset into testing, validating, and training. The sum should be 100')
     args = parser.parse_args()
 
     if args.model == 'ml_QM_GNN':
@@ -45,5 +49,7 @@ def parse_args():
         elif args.model == 'GNN':
             from GNN.WLN.data_loading import Graph_DataLoader
             from GNN.WLN.models import WLNPairwiseAtomClassifier
+        else:
+            raise NotImplementedError('Model not implemented, only allow ml_QM_GNN, QM_GNN, and GNN')
 
     return args, Graph_DataLoader, WLNPairwiseAtomClassifier

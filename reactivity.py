@@ -13,8 +13,11 @@ args, dataloader, classifier = parse_args()
 reactivity_data = pd.read_csv(args.data_path, index_col=0)
 
 if not args.predict:
-    test = reactivity_data.sample(frac=0.1)
-    valid = reactivity_data[~reactivity_data.reaction_id.isin(test.reaction_id)].sample(frac=1/9, random_state=1)
+    splits = args.splits
+    test_ratio = splits[0]/sum(splits)
+    valid_ratio = splits[1]/sum(splits[1:])
+    test = reactivity_data.sample(frac=test_ratio)
+    valid = reactivity_data[~reactivity_data.reaction_id.isin(test.reaction_id)].sample(frac=valid_ratio, random_state=1)
     train = reactivity_data[~(reactivity_data.reaction_id.isin(test.reaction_id) |
                               reactivity_data.reaction_id.isin(valid.reaction_id))]
 
@@ -50,8 +53,8 @@ save_name = os.path.join(args.model_dir, 'best_model.hdf5')
 if not os.path.isdir(args.model_dir):
     os.mkdir(args.model_dir)
 
-model = classifier(args.feature, args.depth, output_dim=5)
-opt = tf.keras.optimizers.Adam(lr=0.0007, clipnorm=5)
+model = classifier(args.feature, args.depth)
+opt = tf.keras.optimizers.Adam(lr=args.ini_lr, clipnorm=5)
 model.compile(
     optimizer=opt,
     loss=wln_loss,
@@ -73,11 +76,11 @@ callbacks = [checkpoint, reduce_lr]
 
 if not args.predict:
     hist = model.fit_generator(
-        train_gen, steps_per_epoch=train_steps, epochs=50,
+        train_gen, steps_per_epoch=train_steps, epochs=args.epochs,
         validation_data=valid_gen, validation_steps=valid_steps,
         callbacks=callbacks,
         use_multiprocessing=True,
-        workers=10
+        workers=args.worker
     )
 else:
     predicted = []
