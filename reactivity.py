@@ -29,11 +29,11 @@ if not args.predict:
     valid_smiles = valid.rxn_smiles.str.split('>', expand=True)[0].values
     valid_products = valid.products_run.values
 
-    train_gen = dataloader(train_smiles, train_products, train_rxn_id, args.batch_size)
-    train_steps = np.ceil(len(train_smiles) / args.batch_size).astype(int)
+    train_gen = dataloader(train_smiles, train_products, train_rxn_id, args.selec_batch_size)
+    train_steps = np.ceil(len(train_smiles) / args.selec_batch_size).astype(int)
 
-    valid_gen = dataloader(valid_smiles, valid_products, valid_rxn_id, args.batch_size)
-    valid_steps = np.ceil(len(valid_smiles) / args.batch_size).astype(int)
+    valid_gen = dataloader(valid_smiles, valid_products, valid_rxn_id, args.selec_batch_size)
+    valid_steps = np.ceil(len(valid_smiles) / args.selec_batch_size).astype(int)
     for x, _ in dataloader([train_smiles[0]], [train_products[0]], [train_rxn_id[0]], 1):
         x_build = x
 else:
@@ -42,8 +42,8 @@ else:
     test_smiles = test.rxn_smiles.str.split('>', expand=True)[0].values
     test_products = test.products_run.values
 
-    test_gen = dataloader(test_smiles, test_products, test_rxn_id, args.batch_size, predict=True)
-    test_steps = np.ceil(len(test_smiles) / args.batch_size).astype(int)
+    test_gen = dataloader(test_smiles, test_products, test_rxn_id, args.selec_batch_size, predict=True)
+    test_steps = np.ceil(len(test_smiles) / args.selec_batch_size).astype(int)
 
 # need an input to initialize the graph network
     for x in dataloader([test_smiles[0]], [test_products[0]], [test_rxn_id[0]], 1, predict=True):
@@ -76,15 +76,15 @@ callbacks = [checkpoint, reduce_lr]
 
 if not args.predict:
     hist = model.fit_generator(
-        train_gen, steps_per_epoch=train_steps, epochs=args.epochs,
+        train_gen, steps_per_epoch=train_steps, epochs=args.selec_epochs,
         validation_data=valid_gen, validation_steps=valid_steps,
         callbacks=callbacks,
         use_multiprocessing=True,
-        workers=args.worker
+        workers=args.workers
     )
 else:
     predicted = []
-    for x in tqdm(test_gen, total=int(len(test_smiles) / args.batch_size)):
+    for x in tqdm(test_gen, total=int(len(test_smiles) / args.selec_batch_size)):
         out = model.predict_on_batch(x)
         predicted.append(out)
 
