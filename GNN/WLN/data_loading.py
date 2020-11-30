@@ -4,8 +4,6 @@ from random import shuffle
 from ..graph_utils.mol_graph import get_bond_edits, smiles2graph_pr, pack1D, pack2D, pack2D_withidx, get_mask
 from ..graph_utils.ioutils_direct import binary_features_batch
 
-# get QM descriptor
-
 class Graph_DataLoader(Sequence):
     def __init__(self, smiles, products, rxn_id, batch_size, shuffle=True):
         self.smiles = smiles

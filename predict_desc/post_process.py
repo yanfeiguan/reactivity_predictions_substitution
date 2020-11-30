@@ -20,10 +20,15 @@ def check_chemprop_out(df):
     return invalid
 
 
-def min_max_normalize(df, scalers=None):
+def min_max_normalize(df, scalers=None, train_smiles=None):
+
+    if train_smiles is not None:
+        ref_df = df[df.smiles.isin(train_smiles)]
+    else:
+        ref_df = df.copy()
 
     if scalers is None:
-        scalers = get_scaler(df)
+        scalers = get_scaler(ref_df)
 
     for column in GLOBAL_SCALE:
         scaler = scalers[column]
@@ -59,7 +64,7 @@ def get_scaler(df):
 
     if ATOM_SCALE:
         atoms = df.smiles.apply(lambda x: get_atoms(x))
-        atoms = np.concatenate(atoms)
+        atoms = np.concatenate(atoms.tolist())
         for column in ATOM_SCALE:
             data = np.concatenate(df[column].tolist())
 

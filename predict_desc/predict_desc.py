@@ -9,8 +9,15 @@ from chemprop.train import make_predictions
 from .post_process import check_chemprop_out, min_max_normalize
 import pickle
 
+def reaction_to_reactants(reactions):
+    reactants = set()
+    for r in reactions:
+        rs = r.split('>')[0].split('.')
+        reactants.update(set(rs))
+    return list(reactants)
 
-def predict_desc(args, normaliza=True):
+
+def predict_desc(args, normalize=True):
     import chemprop
     chemprop_root = os.path.dirname(os.path.dirname(chemprop.__file__))
 
@@ -30,13 +37,7 @@ def predict_desc(args, normaliza=True):
 
     # predict descriptors for reactants in the reactions
     reactivity_data = pd.read_csv(args.data_path, index_col=0)
-    reactants = set()
-    for _, row in reactivity_data.iterrows():
-        rs, _, _ = row['rxn_smiles'].split('>')
-        rs = rs.split('.')
-        for r in rs:
-            reactants.add(r)
-    reactants = list(reactants)
+    reactants = reaction_to_reactants(reactivity_data['rxn_smiles'].tolist())
 
     print('Predicting descriptors for reactants...')
     test_preds, test_smiles = make_predictions(args, smiles=reactants)
@@ -73,7 +74,7 @@ def predict_desc(args, normaliza=True):
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors.pickle'))
     save_dir = args.model_dir
 
-    if not normaliza:
+    if not normalize:
         return df
 
     if not args.predict:
@@ -81,7 +82,7 @@ def predict_desc(args, normaliza=True):
         pickle.dump(scalers, open(os.path.join(save_dir, 'scalers.pickle'), 'wb'))
     else:
         scalers = pickle.load(open(os.path.join(save_dir, 'scalers.pickle'), 'rb'))
-        df, _ = min_max_normalize(df, scalers)
+        df, _ = min_max_normalize(df, scalers=scalers)
 
     df.to_pickle(os.path.join(args.output_dir, 'reactants_descriptors_norm.pickle'))
 

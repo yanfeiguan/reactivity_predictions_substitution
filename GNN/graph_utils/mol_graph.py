@@ -1,11 +1,6 @@
 import rdkit.Chem as Chem
 import numpy as np
-import pandas as pd
-import os
 
-# import tensorflow as tf
-
-qm_descriptors_path = '/home/yanfeig/Projects/QM_desc/wln_QM/ML_substitution_all/data/substitution_reactions/descriptors.pkl'
 elem_list = ['C', 'O', 'N', 'F', 'Br', 'Cl', 'S',
              'Si', 'B', 'I', 'K', 'Na', 'P', 'Mg', 'Li', 'Al', 'H']
 
@@ -15,8 +10,6 @@ atom_fdim_qm = 10 + 10 + 10 + 10
 bond_fdim_geo = 6
 bond_fdim_qm = 25 + 40
 max_nb = 10
-
-qm_descriptors = pd.read_pickle(qm_descriptors_path).set_index('smiles')
 
 # from graph_utils.electronegs import electronegs
 

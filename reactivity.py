@@ -12,6 +12,15 @@ from utils import wln_loss, regio_acc, lr_multiply_ratio, parse_args
 args, dataloader, classifier = parse_args()
 reactivity_data = pd.read_csv(args.data_path, index_col=0)
 
+if args.model == 'ml_QM_GNN':
+    from ml_QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
+    from predict_desc.predict_desc import predict_desc, reaction_to_reactants
+    from predict_desc.post_process import min_max_normalize
+else:
+    if args.model == 'QM_GNN':
+        from QM_GNN.graph_utils.mol_graph import initialize_qm_descriptors
+        initialize_qm_descriptors(path=args.desc_path)
+
 if not args.predict:
     splits = args.splits
     test_ratio = splits[0]/sum(splits)
@@ -20,6 +29,12 @@ if not args.predict:
     valid = reactivity_data[~reactivity_data.reaction_id.isin(test.reaction_id)].sample(frac=valid_ratio, random_state=1)
     train = reactivity_data[~(reactivity_data.reaction_id.isin(test.reaction_id) |
                               reactivity_data.reaction_id.isin(valid.reaction_id))]
+
+    if args.model == 'ml_QM_GNN':
+        df = predict_desc(args, normalize=False)
+        train_reactants = reaction_to_reactants(train['rxn_smiles'].tolist())
+        df, _ = min_max_normalize(df, train_smiles=train_reactants)
+        initialize_qm_descriptors(df=df)
 
     train_rxn_id = train['reaction_id'].values
     train_smiles = train.rxn_smiles.str.split('>', expand=True)[0].values
@@ -42,6 +57,10 @@ else:
     test_smiles = test.rxn_smiles.str.split('>', expand=True)[0].values
     test_products = test.products_run.values
 
+    if args.model == 'ml_QM_GNN':
+        df = predict_desc(args)
+        initialize_qm_descriptors(df=df)
+
     test_gen = dataloader(test_smiles, test_products, test_rxn_id, args.selec_batch_size, predict=True)
     test_steps = np.ceil(len(test_smiles) / args.selec_batch_size).astype(int)
 
@@ -50,8 +69,6 @@ else:
         x_build = x
 
 save_name = os.path.join(args.model_dir, 'best_model.hdf5')
-if not os.path.isdir(args.model_dir):
-    os.mkdir(args.model_dir)
 
 model = classifier(args.feature, args.depth)
 opt = tf.keras.optimizers.Adam(lr=args.ini_lr, clipnorm=5)
