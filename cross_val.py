@@ -83,7 +83,6 @@ for i in range(args.k_fold):
         callbacks=callbacks,
         use_multiprocessing=True,
         workers=args.workers,
-        verbose=2,
     )
 
     with open(os.path.join(args.model_dir, 'history_{}.pickle'.format(i)), 'wb') as hist_pickle:
