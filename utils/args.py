@@ -2,13 +2,11 @@ import os
 import argparse
 
 from rdkit import rdBase
-from chemprop.parsing import add_predict_args
 
 rdBase.DisableLog('rdApp.warning')
 
 def parse_args(cross_val=False):
     parser = argparse.ArgumentParser()
-    add_predict_args(parser)
     parser.add_argument('-r', '--restart', action='store_true',
                         help='restart the training using the saved the checkpoint file')
     parser.add_argument('-p', '--predict', action='store_true',

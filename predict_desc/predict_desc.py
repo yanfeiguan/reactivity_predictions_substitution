@@ -1,13 +1,12 @@
 import os
+import pickle
 
-import numpy as np
 import pandas as pd
 from rdkit import Chem
+from qmdesc import ReactivityDescriptorHandler
+from tqdm import tqdm
 
-from chemprop.parsing import modify_predict_args
-from chemprop.train import make_predictions
 from .post_process import check_chemprop_out, min_max_normalize
-import pickle
 
 def reaction_to_reactants(reactions):
     reactants = set()
@@ -18,14 +17,6 @@ def reaction_to_reactants(reactions):
 
 
 def predict_desc(args, normalize=True):
-    import chemprop
-    chemprop_root = os.path.dirname(os.path.dirname(chemprop.__file__))
-
-    #trick chemprop
-    args.test_path = 'foo'
-    args.preds_path = 'foo'
-    args.checkpoint_path = os.path.join(chemprop_root, 'trained_model', 'QM_137k.pt')
-    modify_predict_args(args)
 
     def num_atoms_bonds(smiles):
         m = Chem.MolFromSmiles(smiles)
@@ -40,29 +31,13 @@ def predict_desc(args, normalize=True):
     reactants = reaction_to_reactants(reactivity_data['rxn_smiles'].tolist())
 
     print('Predicting descriptors for reactants...')
-    test_preds, test_smiles = make_predictions(args, smiles=reactants)
 
-    partial_charge = test_preds[0]
-    partial_neu = test_preds[1]
-    partial_elec = test_preds[2]
-    NMR = test_preds[3]
+    handler = ReactivityDescriptorHandler()
+    descs = []
+    for smiles in tqdm(reactants):
+        descs.append(handler.predict(smiles))
 
-    bond_order = test_preds[4]
-    bond_distance = test_preds[5]
-
-    n_atoms, n_bonds = zip(*[num_atoms_bonds(x) for x in reactants])
-
-    partial_charge = np.split(partial_charge.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-    partial_neu = np.split(partial_neu.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-    partial_elec = np.split(partial_elec.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-    NMR = np.split(NMR.flatten(), np.cumsum(np.array(n_atoms)))[:-1]
-
-    bond_order = np.split(bond_order.flatten(), np.cumsum(np.array(n_bonds)))[:-1]
-    bond_distance = np.split(bond_distance.flatten(), np.cumsum(np.array(n_bonds)))[:-1]
-
-    df = pd.DataFrame(
-        {'smiles': reactants, 'partial_charge': partial_charge, 'fukui_neu': partial_neu, 'fukui_elec': partial_elec,
-         'NMR': NMR, 'bond_order': bond_order, 'bond_length': bond_distance})
+    df = pd.DataFrame(descs)
 
     invalid = check_chemprop_out(df)
     # FIXME remove invalid molecules from reaction dataset
