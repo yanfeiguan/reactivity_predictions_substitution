@@ -8,7 +8,7 @@ This repository contains code and model for predicting regio-selectivity for sub
 1. python 3.7
 2. tensorflow 2.0.0
 3. rdkit
-3. [qmdesc](https://github.com/yanfeiguan/chemprop-atom-bond) (https://github.com/yanfeiguan/qmdesc) (python package for predicting QM descriptors on the fly)
+3. [qmdesc](https://github.com/yanfeiguan/chemprop-atom-bond) (python package for predicting QM descriptors on the fly)
 
 ### Conda environment
 To set up a conda environment:
