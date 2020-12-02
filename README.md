@@ -13,7 +13,7 @@ This repository contains code and model for predicting regio-selectivity for sub
 ### Conda environment
 To set up a conda environment:
 ```
-conda env create --name test --file environment.yml
+conda env create --name <env-name> --file environment.yml
 ```
 
 ## Data
