@@ -42,12 +42,12 @@ This repo provides two model architectures as described in the paper.
 A conventional graph neural network that relies only on the machine learned reaction representation of a given reaction. 
 To train the model, run:
 ```
-python reactivitiy.py -m GNN --data_path <path to the .csv file> --model_dir <directory to save the trained model> 
+python reactivity.py -m GNN --data_path <path to the .csv file> --model_dir <directory to save the trained model> 
 ```
 
 For example, to train the model on CH functionalization reactions to predict the regio-selectivity:
 ```angular2
-python reactivitiy.py -m GNN --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/GNN_uspto_CH
+python reactivity.py -m GNN --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/GNN_uspto_CH
 ```
 
 A checkpoint file, `best_model.hdf5`, will be saved in the `trained_model/GNN_uspto_CH` directory.
@@ -59,7 +59,7 @@ calculated QM descriptors. To use this architecture, the [Chemprop-atom-bond](ht
 must be installed. To train the model, run:
 
 ```
-python reactivitiy.py --data_path <path to the .csv file> --model_dir <directory to save the trained model> 
+python reactivity.py --data_path <path to the .csv file> --model_dir <directory to save the trained model> 
 ``` 
 
 The `reactivity.py` use `ml-QM-GNN` mode by default. The workflow first predict QM atomic/bond descriptors for all reactants found in reactions.
@@ -68,14 +68,14 @@ as `scalers.pickle` in the `model_dir` for later predicting task. A checkpoint f
 
 For example:
 ```angular2
-python reactivitiy.py --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/ml_QM_GNN_uspto_CH
+python reactivity.py --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/ml_QM_GNN_uspto_CH
 ```
 
 ## Predicting
 To use the trained model, run:
 
 ```
-python reactivitiy -m <mode> --data_path <path to the predicting .csv file> --model_dir <directory containing the trained model> -p 
+python reactivity -m <mode> --data_path <path to the predicting .csv file> --model_dir <directory containing the trained model> -p 
 ```
 
 where `data_path` is path to the predicting `.csv` file, whose format is the same as the one discussed. `model_dir` is the directory holding the trained model. 
@@ -84,7 +84,7 @@ The model must be named as `best_model.hdb5` and stores parameters only. The `mo
 
 We provide models trained on Pistachio regio-selective reactions, which are stored in the [trained_model](./trained_model). For example:
 ```angular2
-python reactivitiy.py -m ml_QM_GNN --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/ml_QM_GNN_CH -p 
+python reactivity.py -m ml_QM_GNN --data_path uspto_demo_data/uspto_CH.csv --model_dir trained_model/ml_QM_GNN_CH -p 
 ``` 
 
 The predicted result will be saved as a '.csv' file in the user specified output directory by the flag `--output_dir`, 
